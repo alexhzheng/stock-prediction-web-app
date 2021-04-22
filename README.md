@@ -8,6 +8,7 @@
 - pip install numpy
 - pip install sklearn
 - pip install keras
+- pip install tensorflow
 - pip install matplotlib
 - pip install beautifulsoup4
 - pip install ssl
