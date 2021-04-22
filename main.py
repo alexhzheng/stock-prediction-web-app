@@ -21,14 +21,19 @@ START = "2015-01-01"
 END = "2021-01-01"
 TODAY = date.today().strftime("%Y-%m-%d")
 
-# class with dunder methods __init__ and __str__
+# class with dunder methods __init__, __str__, and __set__
 class Stock:
-    def __init__(self, ticker, description):
+    def __init__(self, ticker, description, prediction):
         self.ticker = ticker
         self.description = description
+        self.prediction = prediction
         
     def __str__(self):
         return self.description
+
+    def __set__(self, prediction, value):
+        self.prediction = value
+
 
 
 # returns a list of stock symbols to help me check if stock is valid and in S&P500
@@ -64,7 +69,6 @@ def plot_raw_data():
     with st.beta_container():
         fig = plt.figure()
         ax = fig.add_subplot()
-        ax.plot(stock_data['Date'], stock_data['Open'], color = "red", label="stock_open")
         ax.plot(stock_data['Date'], stock_data['Close'], color = "blue", label="stock_close")
         ax.set_title('Actual Price Graph')
         ax.set_xlabel('Time')
@@ -162,7 +166,7 @@ selected_stock = st.text_input("Enter ticker")
 if selected_stock != "":
     st.subheader("Description")
     description = getdescription()
-    stock = Stock(selected_stock, description)
+    stock = Stock(selected_stock, description, 0)
     st.markdown(stock)
 
     data_load_state = st.text("Load data for " + selected_stock)
@@ -178,13 +182,14 @@ if selected_stock != "":
     mlmodel = get_predicted_prices(selected_stock)
     predicted_prices = mlmodel[0]
     actual_prices = mlmodel[1]
-    prediction = mlmodel[2][0][0]
+    stock.prediction = mlmodel[2][0][0]
     data_load_state2.text("Done!")
     st.subheader("Prediction for " + selected_stock)
     plot_predicted_data()
     t1 = time.perf_counter()
     time_state = st.text('Time taken for ML: ' + str(t1-t0) + " seconds")
-    st.subheader("Prediction for next price: " + str(prediction))
+    st.subheader("Prediction for next price: " + str(stock.prediction))
+        
 
 
 
