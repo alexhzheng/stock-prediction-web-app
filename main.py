@@ -23,9 +23,20 @@ TODAY = date.today().strftime("%Y-%m-%d")
 
 # class with dunder methods __init__, __str__, and __set__
 class Stock:
-    def __init__(self, ticker, description, prediction):
+    def __init__(self, ticker, prediction):
         self.ticker = ticker
-        self.description = description
+
+        # gets stock data from yfinace api
+        self.data = yf.download(ticker, START, END)
+        self.data.reset_index(inplace=True)
+
+        # webscrape the description
+        url = "https://finance.yahoo.com/quote/"+selected_stock+"/profile?p="+selected_stock
+        page = urllib2.urlopen(url)
+        soup = BeautifulSoup(page, 'html.parser')
+        self.description = soup.find('p',{'class':'Mt(15px) Lh(1.6)'}).text.strip()
+
+        # will update the value after model is run
         self.prediction = prediction
         
     def __str__(self):
@@ -44,32 +55,12 @@ def load_stocks():
     symbols = df['Symbol'].values.tolist()
     return symbols
 
-# gets stock data from yfinace api
-# only run once per stock because cached
-@st.cache 
-def load_data(ticker):
-    data = yf.download(ticker, START, END)
-    data.reset_index(inplace=True)
-    return data
-
-
-# webscrape the description
-# only run once per stock because cached
-@st.cache
-def getdescription():
-    # link for profile page of stock
-    url = "https://finance.yahoo.com/quote/"+selected_stock+"/profile?p="+selected_stock
-    page = urllib2.urlopen(url)
-    soup = BeautifulSoup(page, 'html.parser')
-    description = soup.find('p',{'class':'Mt(15px) Lh(1.6)'}).text.strip()
-    return description
-
-# uses pyploy to plot the open and closing price of stock
+# uses pyplot to plot the open and closing price of stock
 def plot_raw_data():
     with st.beta_container():
         fig = plt.figure()
         ax = fig.add_subplot()
-        ax.plot(stock_data['Date'], stock_data['Close'], color = "blue", label="stock_close")
+        ax.plot(stock.data['Date'], stock.data['Close'], color = "blue", label="stock_close")
         ax.set_title('Actual Price Graph')
         ax.set_xlabel('Time')
         ax.set_ylabel('Stock Price')
@@ -81,7 +72,7 @@ def get_predicted_prices(ticker):
     # scale down all values so fit between 0 and 1
     scaler = MinMaxScaler(feature_range=(0,1))
     # only worry about close price
-    scaled_data = scaler.fit_transform(stock_data['Close'].values.reshape(-1,1))
+    scaled_data = scaler.fit_transform(stock.data['Close'].values.reshape(-1,1))
 
     # how many days want to look into past to predict next day/how many days to base prediction on
     prediction_days = 60
@@ -119,7 +110,7 @@ def get_predicted_prices(ticker):
     # test the model accuracy on existing data
     test_data = yf.download(ticker, END, TODAY)
     actual_prices = test_data['Close'].values 
-    total_dataset = pd.concat((stock_data['Close'], test_data['Close']), axis = 0)
+    total_dataset = pd.concat((stock.data['Close'], test_data['Close']), axis = 0)
 
     model_inputs = total_dataset[len(total_dataset) - len(test_data) - prediction_days:].values
     model_inputs = model_inputs.reshape(-1,1)
@@ -159,22 +150,19 @@ def plot_predicted_data():
         st.pyplot(fig)
 
 
-# code for web app
+# code for streamlit web app
 st.title("Stock Prediction App")
 stocks = load_stocks()
-selected_stock = st.text_input("Enter ticker")
+selected_stock = st.text_input("Enter S&P500 ticker")
+
 if selected_stock != "":
     st.subheader("Description")
-    description = getdescription()
-    stock = Stock(selected_stock, description, 0)
+    stock = Stock(selected_stock, 0)
     st.markdown(stock)
 
-    data_load_state = st.text("Load data for " + selected_stock)
-    stock_data = load_data(selected_stock)
-    data_load_state.text("")
-
+    #raw data table for most recent five days
     st.subheader('Raw data for ' + selected_stock)
-    st.write(stock_data.tail())
+    st.write(stock.data.tail())
     plot_raw_data()
 
     t0 = time.perf_counter()
