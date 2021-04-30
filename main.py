@@ -30,10 +30,11 @@ class Stock:
         self.data = yf.download(ticker, START, END)
         self.data.reset_index(inplace=True)
 
-        # webscrape the description
+        # webscrape the name and description
         url = "https://finance.yahoo.com/quote/"+selected_stock+"/profile?p="+selected_stock
         page = urllib2.urlopen(url)
         soup = BeautifulSoup(page, 'html.parser')
+        self.name = soup.find('h1', {'class':'D(ib) Fz(18px)'}).text.strip()
         self.description = soup.find('p',{'class':'Mt(15px) Lh(1.6)'}).text.strip()
 
         # will update the value after model is run
@@ -153,9 +154,13 @@ def plot_predicted_data():
 # code for streamlit web app
 st.title("Stock Prediction App")
 stocks = load_stocks()
-selected_stock = st.text_input("Enter S&P500 ticker")
+selected_stock = st.text_input("Enter S&P500 ticker").upper()
 
-if selected_stock != "":
+if selected_stock != "" and selected_stock in stocks:
+    
+    stock = Stock(selected_stock, 0)
+    st.subheader("Company Name")
+    st.markdown(stock.name)
     st.subheader("Description")
     stock = Stock(selected_stock, 0)
     st.markdown(stock)
